@@ -75,13 +75,15 @@ class multiCACC(gym.Env):
         # self.observation_space = Box(low=0, high=1, shape=(num_agents, 2))
         # self.action_space = Box(low=-1, high=1, shape=(num_agents,))  # acceleration
 
-        self.observation_space = [Box(low=0, high=1, shape=(len(state_type),)) for _ in range(num_agents)]
+        # self.observation_space = [Box(low=0, high=1, shape=(len(state_type),)) for _ in range(num_agents)]
+        self.observation_space = Box(low=0, high=1, shape=(len(state_type) * num_agents, ))
         # self.observation_space = [Box(low=0, high=1, shape=(5,)) for _ in range(num_agents)]
 
-        if not enable_communication:
-            self.action_space = [Box(low=-1, high=1, shape=(1,)) for _ in range(num_agents)]  # acceleration
-        else:
-            self.action_space = [Box(low=-1, high=1, shape=(2,)) for _ in range(num_agents)]
+        # if not enable_communication:
+        # self.action_space = [Box(low=-1, high=1, shape=(1,)) for _ in range(num_agents)]  # acceleration
+        self.action_space = Box(low=-1, high=1, shape=(num_agents, ))
+        # else:
+        # self.action_space = [Box(low=-1, high=1, shape=(2,)) for _ in range(num_agents)]
 
         self.action_normalizer = min_max_normalizer_action(-1 * adj_amp, adj_amp)
 
@@ -111,15 +113,15 @@ class multiCACC(gym.Env):
 
     def get_state(self, norm=True, i=None) -> npt.NDArray[np.float32]:
         if i is not None:
-            states = np.zeros(shape=(len(self.state_type)))
+            states = np.zeros(shape=(len(self.state_type), 1))
             for j, s_name in enumerate(self.state_type):
                 states[j] = state_function[s_name](self.agents[i])
 
         else:
-            states = np.zeros(shape=(self.num_agents, len(self.state_type)))
+            states = np.zeros(shape=(len(self.state_type), self.num_agents))
             for i in range(self.num_agents):
                 for j, s_name in enumerate(self.state_type):
-                    states[i, j] = state_function[s_name](self.agents[i])
+                    states[j, i] = state_function[s_name](self.agents[i])
 
             # ego position
             # states[i, 0] = self.agents[i].x
@@ -261,6 +263,8 @@ class multiCACC(gym.Env):
             # reward_n = [np.mean(reward_n)] * self.num_agents
             reward_n = [x+shared_reward for x in reward_n]
 
+        obs_n = np.concatenate(obs_n, axis=1)
+        obs_n = obs_n.flatten()
         return obs_n, reward_n, done_n, info_n
 
     def reset(self):
@@ -279,6 +283,9 @@ class multiCACC(gym.Env):
                 self.viewer.close()
 
         self.viewer = None
+        obs_n = np.concatenate(obs_n, axis=1)
+        obs_n = obs_n.flatten()
+
         return obs_n
 
     def render(self, mode="human", display=True, save=False, viewer=False, save_path=None):
@@ -368,7 +375,8 @@ class multiCACC(gym.Env):
                 self.viewer.history['position'][str(i)].append(self.agents[i-1].x)
                 self.viewer.history['speed'][str(i)].append(self.agents[i-1].v)
                 self.viewer.history['jerk_value'][str(i)].append(self.agents[i-1].jerk)
-                self.viewer.history['TTC_value'][str(i)].append(abs(state_function['spacing'](self.agents[i-1])/(state_function['relative_speed'](self.agents[i-1]) + 0.00001)))
+                self.viewer.history['TTC_value'][str(i)].append(abs(state_function['spacing'](self.agents[i-1]) /
+                                                                    (state_function['relative_speed'](self.agents[i-1]) + 0.00001)))
                 self.viewer.history['acceleration'][str(i)].append(self.agents[i-1].a)
                 self.viewer.history['spacing'][str(i)].append(state_function['spacing'](self.agents[i-1]))
                 self.viewer.history['relative_speed'][str(i)].append(state_function['relative_speed'](self.agents[i-1]))

@@ -11,9 +11,15 @@ class min_max_normalizer():
         self.max = max
 
     def normalize(self, value: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
+        if value.shape != self.min.shape:
+            self.min = self.min.reshape(value.shape)
+            self.max = self.max.reshape(value.shape)
         return np.array(np.divide(value - self.min, self.max - self.min))
 
     def denormalize(self, value: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
+        if value.shape != self.min.shape:
+            self.min = self.min.reshape(value.shape)
+            self.max = self.max.reshape(value.shape)
         return np.array(value * (self.max - self.min) + self.min)
 
 
